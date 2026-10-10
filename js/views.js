@@ -192,7 +192,7 @@
   const META_COLUMNS = [
     { key: "leader", label: "Leader", text: true, value: (r) => (store.leader(r.leader) || {}).name || "" },
     { key: "base", label: "Base", text: true, value: (r) => (store.base(r.base) || {}).name || "" },
-    { key: "events", label: "Events", value: (r) => r.events },
+    { key: "events", label: "Showings", title: "How many times this leader + base was played", value: (r) => r.events },
     { key: "wins", label: "W", title: "Match wins", value: (r) => r.wins },
     { key: "losses", label: "L", title: "Match losses", value: (r) => r.losses },
     { key: "draws", label: "D", title: "Match draws", value: (r) => r.draws },
