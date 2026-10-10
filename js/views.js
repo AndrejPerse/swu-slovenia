@@ -165,9 +165,11 @@
         ${event.melee ? `<a class="btn btn--ghost" href="${esc(event.melee)}" target="_blank" rel="noopener">View on Melee ↗</a>` : ""}
       </div>
       <div class="deck">
-        ${leader ? `<img class="deck-art" src="${esc(leader.art)}" alt="${esc(leader.name)}">` : `<div class="deck-art deck-art--empty">No leader recorded</div>`}
+        ${leader ? `<img class="deck-art" src="${esc(leader.art)}" alt="${esc(leader.name)}">` : `<div class="deck-art deck-art--empty">Leader unknown</div>`}
         <div class="deck-info">
-          ${leader ? `<h3>${esc(leader.name)}</h3><p class="leader-sub">${esc(leader.subtitle)}</p>${ui.aspectDots(leader.aspects)}` : ""}
+          ${leader
+            ? `<h3>${esc(leader.name)}</h3><p class="leader-sub">${esc(leader.subtitle)}</p>${ui.aspectDots(leader.aspects)}`
+            : `<h3 class="muted">Unknown leader</h3>`}
           <div class="deck-base">${ui.base(result.base, { large: true })}</div>
           <div class="deck-result">
             <span class="finish">${finishText(result)}</span>
@@ -244,6 +246,7 @@
         ? `<div class="table-wrap"><table class="table meta"><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table></div>`
         : ui.empty("No decks recorded", `No leaders and bases have been entered for ${format} events yet.`)}
       <p class="footnote">W / L / D count matches${SWU.config.metaIncludesTopCut ? ", including top cut" : " in Swiss rounds only"}; byes are left out.
+      Decks with an unknown leader or base aren't counted until they're filled in.
       Pts/Event is the average Melee match points, without the participation point. Click a column title to sort.</p>`;
   };
 

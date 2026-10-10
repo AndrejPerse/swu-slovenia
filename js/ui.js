@@ -43,9 +43,12 @@
     return colors.length ? `--c1: ${colors[0]}; --c2: ${colors[1] || colors[0]};` : "";
   };
 
+  // Shown when a leader or base hasn't been recorded (yet). It can be filled in later in the editor.
+  ui.unknown = (what) => `<span class="unknown" title="Not recorded yet">Unknown ${what}</span>`;
+
   ui.leader = function (id, { compact = false } = {}) {
     const l = id && SWU.store.leader(id);
-    if (!l) return `<span class="muted">—</span>`;
+    if (!l) return ui.unknown("leader");
     return `<span class="leader aspect-tint${compact ? " leader--compact" : ""}" style="${ui.leaderStyle(l)}" title="${ui.esc(`${l.name}, ${l.subtitle}`)}">
       <img class="leader-thumb" src="${ui.esc(l.thumb)}" alt="" loading="lazy">
       <span class="leader-text"><span class="leader-name">${ui.esc(l.name)}</span><span class="leader-sub">${ui.esc(l.subtitle)}</span></span>
@@ -60,7 +63,7 @@
 
   ui.base = function (id, { large = false } = {}) {
     const b = id && SWU.store.base(id);
-    if (!b) return `<span class="muted">—</span>`;
+    if (!b) return ui.unknown("base");
     const color = (b.color || "none").toLowerCase();
     const title = b.kind === "common" ? `${b.name}: ${b.cards.join(", ")}` : `${b.name} (${b.hp} HP)`;
     return `<span class="base base--${color}${large ? " base--large" : ""}" title="${ui.esc(title)}">${ui.baseIcon(b.id)}<span>${ui.esc(b.name)}</span></span>`;

@@ -292,6 +292,19 @@ button { font: inherit; color: inherit; }
 .leader--compact .leader-thumb { width: 72px; height: 24px; }
 .leader--compact .leader-sub { display: none; }
 
+.unknown {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--line-strong);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+  white-space: nowrap;
+}
+
 .base {
   --c: var(--muted);
   display: inline-flex;

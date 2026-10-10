@@ -178,20 +178,22 @@
 
   function leaderButton(id) {
     const l = id && store.leader(id);
-    if (!l) return `<span class="picker-placeholder">Choose leader…</span>`;
+    if (!l) return `<span class="picker-placeholder">Unknown leader</span>`;
     return `<img class="leader-thumb" src="${esc(l.thumb)}" alt=""><span class="picker-text"><b>${esc(l.name)}</b><small>${esc(l.subtitle)}</small></span>`;
   }
 
   function baseButton(id) {
     const b = id && store.base(id);
-    if (!b) return `<span class="picker-placeholder">Choose base…</span>`;
+    if (!b) return `<span class="picker-placeholder">Unknown base</span>`;
     return `${ui.baseIcon(b.id, "picker-icon")}<span class="picker-text"><b>${esc(b.name)}</b><small>${b.hp} HP</small></span>`;
   }
 
+  const unknownDecks = (players) => players.filter((p) => !p.leader || !p.base).length;
+
   function deckCount() {
     const players = state.draft.players;
-    const done = players.filter((p) => p.leader && p.base).length;
-    return `Decks entered: ${done} / ${players.length}`;
+    const unknown = unknownDecks(players);
+    return `Known decks: ${players.length - unknown} / ${players.length}${unknown ? " · the rest are saved as Unknown" : ""}`;
   }
 
   function draftFromMelee(normalized) {
@@ -238,8 +240,7 @@
 
   async function saveDraft() {
     const { event, players, matches } = state.draft;
-    const missing = players.filter((p) => !p.leader || !p.base).length;
-    if (missing && !confirm(`${missing} player${missing === 1 ? " has" : "s have"} no leader or base yet. Save anyway? You can fill them in later under Events.`)) return;
+    const unknown = unknownDecks(players);
     const payload = {
       event,
       results: players.map((p) => ({
@@ -252,7 +253,9 @@
     await run("Saving the event…", async () => {
       await api.call("saveEvent", payload);
       state.draft = null;
-    }, `Saved "${event.name}". It's now on the standings, player pages and meta.`);
+    }, `Saved "${event.name}". It's now on the standings, player pages and meta.${unknown
+      ? ` ${unknown} deck${unknown === 1 ? " is" : "s are"} still unknown; fill ${unknown === 1 ? "it" : "them"} in any time under Events → Edit.`
+      : ""}`);
   }
 
   // ---- Events list -----------------------------------------------------
@@ -260,9 +263,10 @@
   function eventsView() {
     const events = [...store.allEvents()].reverse();
     if (!events.length) return ui.empty("No events yet", "Use \"Add event\" to import your first Melee event.");
+    const incomplete = events.filter((ev) => unknownDecks(store.eventResults(ev.id)) > 0).length;
     const rows = events.map((ev) => {
       const results = store.eventResults(ev.id);
-      const decks = results.filter((r) => r.leader && r.base).length;
+      const decks = results.length - unknownDecks(results);
       const season = store.season(ev.season);
       return `<tr>
         <td class="nowrap">${ui.formatDate(ev.date)}</td>
@@ -276,8 +280,11 @@
         </td>
       </tr>`;
     }).join("");
-    return `<div class="table-wrap"><table class="table">
-      <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Format</th><th class="num">Decks</th><th></th></tr></thead>
+    const summary = incomplete
+      ? `<p class="notice notice--warn">${incomplete} event${incomplete === 1 ? " has" : "s have"} unknown leaders or bases. Click Edit to fill them in.</p>`
+      : "";
+    return `${summary}<div class="table-wrap"><table class="table">
+      <thead><tr><th>Date</th><th>Event</th><th>Type</th><th>Format</th><th class="num">Known decks</th><th></th></tr></thead>
       <tbody>${rows}</tbody></table></div>`;
   }
 
@@ -632,7 +639,7 @@
     pop.className = "picker-pop";
     pop.innerHTML = `<input class="picker-search" placeholder="Search ${kind === "leader" ? "leaders" : "bases or base cards"}…" autocomplete="off" spellcheck="false">
       <ul class="picker-list" role="listbox"></ul>
-      <button type="button" class="picker-clear">Clear</button>`;
+      <button type="button" class="picker-clear">Set as unknown</button>`;
     document.body.appendChild(pop);
 
     const rect = btn.getBoundingClientRect();
