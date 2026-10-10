@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SWU Slovenia League</title>
+  <meta name="description" content="Standings, player history, meta and calendar of the SWU Slovenia league.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Orbitron:wght@600;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="sample-banner" class="banner" hidden>
+    Preview with sample data: results are real Melee data, but leaders and bases are random placeholders.
+  </div>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="#/standings">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-text"><b>SWU Slovenia</b><small>League</small></span>
+      </a>
+      <nav class="nav">
+        <a href="#/standings" data-nav="standings">Standings</a>
+        <a href="#/meta" data-nav="meta">Meta</a>
+        <a href="#/calendar" data-nav="calendar">Calendar</a>
+      </nav>
+      <label class="season-picker">
+        <span>Season</span>
+        <select id="season-select"></select>
+      </label>
+    </div>
+  </header>
+
+  <main id="app" class="container">
+    <p class="loading">Loading…</p>
+  </main>
+
+  <footer class="site-footer">
+    <p>Fan-made league site for SWU Slovenia. Not affiliated with Lucasfilm, Disney or Fantasy Flight Games.
+      Card images © their respective owners.</p>
+    <p><a href="#/editor">Editor</a></p>
+  </footer>
+
+  <script src="data/cards.js"></script>
+  <script src="data/sample-data.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/views.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/melee.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
