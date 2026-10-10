@@ -20,5 +20,7 @@ Setup steps are in [SETUP.md](SETUP.md).
 | `js/melee.js` | Turns Melee's raw rounds and standings into league rows. |
 | `apps-script/Code.gs` | Google Apps Script backend (lives inside the Google Sheet). |
 | `data/cards.js` | Generated leader and base list. |
-| `data/sample-data.js` | Demo data, shown while `apiUrl` is empty. |
+| `data/sample-data.js` | Fictional practice data for the sandbox (`tools/build_sample_data.py`). |
+| `js/sandbox.js`, `sandbox/` | Sandbox mode (`?sandbox` in a preview): runs `Code.gs` in the browser on practice data. |
+| `preview.cmd`, `tools/preview.py` | Local preview server for this PC and phones on the same Wi-Fi. |
 | `assets/bases/` | Base icons (`<base id>.png`). |

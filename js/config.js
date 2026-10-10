@@ -24,6 +24,7 @@ SWU.config = {
 
   formats: ["Premier", "Eternal", "Sealed", "Draft"],
   eventTypes: ["Weekly", "Showdown"],
+  calendarTypes: ["Weekly", "Showdown", "Playoffs"],
 
   // Default start time for new weekly calendar entries.
   weeklyTime: "17:30",

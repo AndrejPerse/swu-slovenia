@@ -18,22 +18,29 @@
 
   // ---- Standings -------------------------------------------------------
 
-  views.standings = function () {
+  views.standings = function ([seasonParam] = []) {
+    // #/standings/<season id> opens a specific season (shareable link to e.g. last season's final table).
+    if (seasonParam && store.season(seasonParam) && seasonParam !== SWU.state.season) SWU.setSeason(seasonParam, { silent: true });
     const seasonId = SWU.state.season;
     const rows = store.standings(seasonId);
-    const events = store.eventsIn(seasonId);
+    const events = store.leagueEventsIn(seasonId);
     const head = pageHead("Standings", `${seasonLabel(seasonId)} · ${events.length} event${events.length === 1 ? "" : "s"} · ${rows.length} players`);
-    if (!rows.length) return head + ui.empty("No results yet", "Standings appear after the first event of the season is entered.");
+    const playoffs = playoffsSection(seasonId, rows);
+    if (!rows.length) return head + playoffs + ui.empty("No results yet", "Standings appear after the first event of the season is entered.");
 
-    // The top players qualify for the end-of-season playoffs; a cut line separates them from the rest.
+    // The top players qualify for the end-of-season playoffs: highlighted rows, a dashed line under the last one.
     const spots = SWU.config.playoffSpots;
     const lastQualified = rows.reduce((last, r, i) => (r.rank <= spots ? i : last), -1);
-    const cutLine = `<tr class="cutline"><td colspan="6"><span><i>Playoff cut<b class="long"> · top ${spots} play the single-elimination playoffs</b></i></span></td></tr>`;
 
     const body = rows
       .map((r, i) => {
         const matchPoints = r.points - r.events;
-        const classes = ["row-link", r.rank <= 3 ? `podium podium--${r.rank}` : "", r.rank <= spots ? "playoff" : ""].filter(Boolean).join(" ");
+        const classes = [
+          "row-link",
+          r.rank <= 3 ? `podium podium--${r.rank}` : "",
+          r.rank <= spots ? "playoff" : "",
+          i === lastQualified && i < rows.length - 1 ? "playoff-last" : "",
+        ].filter(Boolean).join(" ");
         return `<tr class="${classes}" data-href="#/player/${encodeURIComponent(r.player)}">
           <td class="rank"><span>${r.rank}</span></td>
           <td class="player-cell">${ui.playerLink(r.player)}</td>
@@ -41,11 +48,11 @@
           <td class="num">${r.weeklies}</td>
           <td class="num">${r.showdowns}</td>
           <td class="num">${r.events}</td>
-        </tr>${i === lastQualified && i < rows.length - 1 ? cutLine : ""}`;
+        </tr>`;
       })
       .join("");
 
-    return `${head}
+    return `${head}${playoffs}
       <div class="table-wrap">
         <table class="table standings">
           <thead><tr>
@@ -57,9 +64,96 @@
           <tbody>${body}</tbody>
         </table>
       </div>
-      <p class="footnote">Points = match points from Melee (win 3, draw 1, loss 0) + 1 per event attended. Top-cut matches don't add points.
-      Ties go to whoever had more points before the most recent event.</p>`;
+      <p class="legend"><i class="legend-swatch"></i><span><b>Top ${spots}</b> qualify for the season playoffs:
+        single elimination, 1st vs ${spots}th and 2nd vs 3rd in the semifinals.</span></p>
+      <p class="footnote">Points = match points from Melee (win 3, draw 1, loss 0) + 1 per event attended. Top-cut matches and the
+      season playoffs don't add points. Ties go to whoever had more points before the most recent event.</p>`;
   };
+
+  // ---- Season playoffs -------------------------------------------------
+
+  // Above the standings: the bracket once results are in; before that, the scheduled date
+  // and the semifinals "if the season ended today" (current season only).
+  function playoffsSection(seasonId, rows) {
+    const po = store.playoffs(seasonId);
+    if (po && (po.semis[0] || po.semis[1])) return bracket(po);
+
+    const entry = store.playoffsCalendarEntry(seasonId);
+    if (!entry || seasonId !== store.currentSeasonId() || entry.date < ui.today()) return "";
+    const top = rows.filter((r) => r.rank <= SWU.config.playoffSpots).slice(0, 4);
+    const pairing = (a, b) => (top[a] && top[b]
+      ? `<span class="po-pair"><b>(${a + 1})</b> ${esc(ui.playerName(top[a].player))} <i>vs</i> <b>(${b + 1})</b> ${esc(ui.playerName(top[b].player))}</span>`
+      : "");
+    return `<section class="po-upcoming">
+      <div class="po-upcoming-when">
+        ${ui.typeBadge("Playoffs")}
+        <b>Season playoffs</b>
+        <span>${ui.formatDate(entry.date, { weekday: "long", day: "numeric", month: "long" })}${entry.time ? ` · ${esc(entry.time)}` : ""}</span>
+      </div>
+      ${top.length === 4 ? `<div class="po-upcoming-pairs"><span class="muted">If the season ended today:</span>${pairing(0, 3)}${pairing(1, 2)}</div>` : ""}
+    </section>`;
+  }
+
+  function bracketRow(po, match, side) {
+    if (!match) return "";
+    const key = side === 1 ? match.p1 : match.p2;
+    const result = (po.seeds.find((s) => s.player === key) || {}).result || {};
+    const winner = po.winner(match);
+    const state = !winner ? "pending" : winner === key ? "win" : "loss";
+    const games = match.result ? (side === 1 ? match.g1 : match.g2) : "–";
+    return `<div class="po-row po-row--${state}">
+      <span class="po-seed">${po.seedOf(key) || ""}</span>
+      <span class="po-player">
+        <span class="po-name">${ui.playerLink(key)}</span>
+        <span class="po-deck">${ui.leader(result.leader, { compact: true })}${ui.base(result.base)}</span>
+      </span>
+      <span class="po-score">${games}</span>
+    </div>`;
+  }
+
+  function bracketMatch(po, match, label, placeholder) {
+    const body = match
+      ? bracketRow(po, match, 1) + bracketRow(po, match, 2)
+      : `<div class="po-row po-row--pending"><span class="po-seed"></span><span class="po-player muted">${esc(placeholder[0])}</span><span class="po-score">–</span></div>
+         <div class="po-row po-row--pending"><span class="po-seed"></span><span class="po-player muted">${esc(placeholder[1])}</span><span class="po-score">–</span></div>`;
+    return `<div class="po-match">${label ? `<span class="po-match-label">${esc(label)}</span>` : ""}${body}</div>`;
+  }
+
+  function bracket(po) {
+    const { event, semis, final, champion } = po;
+    const season = store.season(event.season);
+    const winnerName = (m, i) => (po.winner(m) ? ui.playerName(po.winner(m)) : `Winner of semifinal ${i}`);
+    const champResult = champion ? (po.seeds.find((s) => s.player === champion) || {}).result || {} : null;
+    const champLeader = champResult && store.leader(champResult.leader);
+
+    const championCard = champion
+      ? `<div class="po-champion">
+          <span class="po-champion-label">🏆 ${esc(season ? season.name : "Season")} champion</span>
+          ${champLeader ? `<img class="po-champion-art" src="${esc(champLeader.art)}" alt="${esc(champLeader.name)}">` : ""}
+          <span class="po-champion-name">${ui.playerLink(champion)}</span>
+          <span class="po-deck">${ui.leader(champResult.leader, { compact: true })}${ui.base(champResult.base)}</span>
+        </div>`
+      : `<div class="po-champion po-champion--pending"><span class="po-champion-label">🏆 Champion</span><span class="muted">To be decided</span></div>`;
+
+    return `<section class="po">
+      <div class="po-head">
+        <h2>${esc(season ? season.name : "Season")} playoffs</h2>
+        <p class="page-sub">${ui.formatDate(event.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · ${esc(event.format)} · single elimination</p>
+      </div>
+      <div class="po-bracket">
+        <div class="po-col">
+          <h4 class="po-col-title">Semifinals</h4>
+          ${bracketMatch(po, semis[0], "1st vs 4th", ["Seed 1", "Seed 4"])}
+          ${bracketMatch(po, semis[1], "2nd vs 3rd", ["Seed 2", "Seed 3"])}
+        </div>
+        <div class="po-col po-col--final">
+          <h4 class="po-col-title">Final</h4>
+          ${bracketMatch(po, final, "", [winnerName(semis[0], 1), winnerName(semis[1], 2)])}
+        </div>
+        <div class="po-col po-col--champion">${championCard}</div>
+      </div>
+    </section>`;
+  }
 
   // ---- Player ----------------------------------------------------------
 
@@ -111,7 +205,9 @@
           <div class="event-item-deck">${ui.leader(result.leader, { compact: true })}${ui.base(result.base)}</div>
           <div class="event-item-score">
             <span>${ui.record(result.wins, result.losses, result.draws)}</span>
-            <span><b>${result.points + result.bonus}</b> pts</span>
+            ${store.isPlayoffs(event)
+              ? `<span class="po-finish">${esc(result.finish || "Playoffs")}</span>`
+              : `<span><b>${result.points + result.bonus}</b> pts</span>`}
           </div>
         </a>`;
       })
@@ -127,8 +223,10 @@
     return `<div class="stat"><span class="stat-value">${esc(value)}</span><span class="stat-label">${esc(label)}</span></div>`;
   }
 
-  function finishText(result) {
+  function finishText(result, event) {
+    if (result.finish === "Champion") return "🏆 Season champion";
     if (result.finish === "Winner") return "🏆 Winner";
+    if (store.isPlayoffs(event)) return result.finish || "Season playoffs";
     if (result.finish) return `${result.finish} · ${ordinal(result.rank)} place`;
     return `${ordinal(result.rank)} place`;
   }
@@ -178,8 +276,10 @@
             : `<h3 class="muted">Unknown leader</h3>`}
           <div class="deck-base">${ui.base(result.base, { large: true })}</div>
           <div class="deck-result">
-            <span class="finish">${finishText(result)}</span>
-            <span>${ui.record(result.wins, result.losses, result.draws)} in Swiss · <b>${result.points + result.bonus}</b> league pts${result.counted ? "" : " (not counted)"}</span>
+            <span class="finish">${finishText(result, event)}</span>
+            ${store.isPlayoffs(event)
+              ? `<span>${ui.record(result.wins, result.losses, result.draws)} in the playoffs · no league points</span>`
+              : `<span>${ui.record(result.wins, result.losses, result.draws)} in Swiss · <b>${result.points + result.bonus}</b> league pts${result.counted ? "" : " (not counted)"}</span>`}
           </div>
         </div>
       </div>
@@ -190,7 +290,7 @@
           <tbody>${rounds}</tbody>
         </table>
       </div>
-      ${hasTopCut ? `<p class="footnote">Highlighted rows are top-cut matches; they don't add league points.</p>` : ""}`;
+      ${hasTopCut && !store.isPlayoffs(event) ? `<p class="footnote">Highlighted rows are top-cut matches; they don't add league points.</p>` : ""}`;
   }
 
   // ---- Meta ------------------------------------------------------------
@@ -326,7 +426,7 @@
   };
 
   function calendarChip(item, isNext) {
-    const cls = `cal-chip cal-chip--${item.type === "Showdown" ? "showdown" : "weekly"}${isNext ? " cal-chip--next" : ""}`;
+    const cls = `cal-chip cal-chip--${ui.typeClass(item.type)}${isNext ? " cal-chip--next" : ""}`;
     const href = item.eventId ? `#/event/${encodeURIComponent(item.eventId)}` : `#/calendar/${encodeURIComponent(item.id)}`;
     const tooltip = `${item.time ? `${item.time} ` : ""}${item.title} · ${item.format}`;
     return `<a class="${cls}" href="${href}" title="${esc(tooltip)}">${item.time ? `<span class="cal-chip-time">${esc(item.time)}</span>` : ""}${esc(item.title)}</a>`;
@@ -347,6 +447,10 @@
   views.event = function ([eventId]) {
     const event = store.event(eventId);
     if (!event) return pageHead("Event not found") + ui.empty("Unknown event", "This event isn't in the league data.");
+    if (store.isPlayoffs(event)) {
+      const po = store.playoffs(event.season);
+      return `<a class="back" href="#/standings/${encodeURIComponent(event.season)}">← Standings</a>${po ? bracket(po) : ""}`;
+    }
     const results = store.eventResults(eventId);
     const rows = results
       .map((r) => `<tr class="row-link" data-href="#/player/${encodeURIComponent(r.player)}/${encodeURIComponent(eventId)}">

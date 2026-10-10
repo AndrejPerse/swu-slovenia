@@ -69,8 +69,10 @@
     return `<span class="base base--${color}${large ? " base--large" : ""}" title="${ui.esc(title)}">${ui.baseIcon(b.id)}<span>${ui.esc(b.name)}</span></span>`;
   };
 
+  ui.typeClass = (type) => ({ Showdown: "showdown", Playoffs: "playoffs" })[type] || "weekly";
+
   ui.typeBadge = function (type) {
-    return `<span class="badge badge--${type === "Showdown" ? "showdown" : "weekly"}">${ui.esc(type)}</span>`;
+    return `<span class="badge badge--${ui.typeClass(type)}">${ui.esc(type)}</span>`;
   };
 
   ui.outcomeBadge = function (outcome) {

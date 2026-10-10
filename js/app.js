@@ -98,6 +98,27 @@
     }
   });
 
+  // Outside the live site: a "Preview" banner, or the sandbox banner with its reset button.
+  function showPreviewBanner() {
+    const banner = document.getElementById("preview-banner");
+    if (!banner) return;
+    banner.hidden = location.hostname === SWU.config.liveHost;
+    if (SWU.sandbox) {
+      banner.classList.add("banner--sandbox");
+      banner.innerHTML = `<b>Sandbox</b>: practice data that only lives in this browser. Nothing here touches the real Google Sheet.
+        Editor password: <b>sandbox</b>.
+        <button type="button" class="banner-btn" id="sandbox-reset">Reset practice data</button>
+        <a href="${location.pathname}">Leave the sandbox</a>`;
+      document.getElementById("sandbox-reset").addEventListener("click", () => {
+        FAKE.reset();
+        try { localStorage.removeItem(SWU.config.cacheKey); } catch (e) { /* storage unavailable */ }
+        location.reload();
+      });
+    } else if (!banner.hidden) {
+      banner.insertAdjacentHTML("beforeend", ` <a href="?sandbox">Open the sandbox</a> to practise without touching it.`);
+    }
+  }
+
   async function start() {
     try {
       await SWU.store.load(() => {
@@ -112,7 +133,7 @@
     const thisMonth = SWU.ui.today().slice(0, 7);
     SWU.state.calMonth = thisMonth < SWU.config.calendarStart ? SWU.config.calendarStart : thisMonth;
     document.getElementById("sample-banner").hidden = !SWU.store.isSample();
-    document.getElementById("preview-banner").hidden = location.hostname === SWU.config.liveHost;
+    showPreviewBanner();
     if (SWU.config.logo) {
       document.querySelector(".brand-mark").innerHTML = `<img src="${SWU.ui.esc(SWU.config.logo)}" alt="">`;
     }

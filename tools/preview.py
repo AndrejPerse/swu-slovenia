@@ -16,6 +16,9 @@ ROOT = Path(__file__).resolve().parent.parent
 class NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     """Always send fresh files, so every reload shows the latest edits."""
 
+    # The sandbox loads apps-script/Code.gs as a script.
+    extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map, ".gs": "text/javascript"}
+
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
@@ -57,6 +60,7 @@ def main():
     ip = lan_address()
     if ip and args.host == "0.0.0.0":
         print(f"  On your phone (same Wi-Fi):    http://{ip}:{port}")
+    print(f"\n  Sandbox (practice data, safe to edit):  http://localhost:{port}/?sandbox")
     print("\nClose this window to stop the preview.", flush=True)
     if not args.no_browser:
         webbrowser.open(f"http://localhost:{port}")

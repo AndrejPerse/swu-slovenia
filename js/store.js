@@ -2,7 +2,8 @@
 // The raw data mirrors the Google Sheet tabs: seasons, players, events, results, matches, calendar.
 (function () {
   const store = (SWU.store = {});
-  const CACHE_KEY = "swu-league-data";
+  // The sandbox uses its own cache so practice data never mixes with the real data.
+  const cacheKey = () => SWU.config.cacheKey || "swu-league-data";
 
   let db = null;
 
@@ -25,7 +26,7 @@
     const res = await fetch(`${SWU.config.apiUrl}?action=data`);
     if (!res.ok) throw new Error(`Could not load league data (${res.status})`);
     const raw = await res.json();
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(raw)); } catch (e) { /* storage unavailable */ }
+    try { localStorage.setItem(cacheKey(), JSON.stringify(raw)); } catch (e) { /* storage unavailable */ }
     return raw;
   }
 
@@ -40,7 +41,7 @@
   }
 
   function readCache() {
-    try { return JSON.parse(localStorage.getItem(CACHE_KEY)); } catch (e) { return null; }
+    try { return JSON.parse(localStorage.getItem(cacheKey())); } catch (e) { return null; }
   }
 
   function groupBy(list, keyFn) {
@@ -53,11 +54,13 @@
     return map;
   }
 
-  function dayBefore(iso) {
+  function shiftDays(iso, days) {
     const d = SWU.ui.parseDate(iso);
-    d.setDate(d.getDate() - 1);
+    d.setDate(d.getDate() + days);
     return SWU.ui.isoDate(d);
   }
+
+  const dayBefore = (iso) => shiftDays(iso, -1);
 
   // A season runs from its start date to its end date. Without an end date it runs
   // until the day before the next season starts (or forever, for the latest season).
@@ -69,11 +72,25 @@
     }));
   }
 
+  // Season playoffs are stored as an event with id "playoffs-<season id>", so they belong to their
+  // season even when they're played after the season's last day.
+  const PLAYOFF_PREFIX = "playoffs-";
+  store.playoffEventId = (seasonId) => `${PLAYOFF_PREFIX}${seasonId}`;
+  store.isPlayoffs = (event) => event.type === "Playoffs";
+
+  function seasonOf(event, seasons) {
+    if (event.id.startsWith(PLAYOFF_PREFIX)) {
+      const id = event.id.slice(PLAYOFF_PREFIX.length);
+      if (seasons.some((s) => s.id === id)) return id;
+    }
+    return (seasons.find((s) => s.start <= event.date && event.date <= s.until) || {}).id || null;
+  }
+
   function buildIndex(raw) {
     const cards = window.SWU_CARDS;
     const seasons = withSeasonEnds(raw.seasons);
     const events = [...raw.events]
-      .map((e) => ({ ...e, season: (seasons.find((s) => s.start <= e.date && e.date <= s.until) || {}).id || null }))
+      .map((e) => ({ ...e, season: seasonOf(e, seasons) }))
       .sort((a, b) => a.date.localeCompare(b.date));
     return {
       raw,
@@ -105,7 +122,7 @@
   // Used by the editor after a save: the response carries the fresh data.
   store.setData = function (raw) {
     db = buildIndex(raw);
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(raw)); } catch (e) { /* storage unavailable */ }
+    try { localStorage.setItem(cacheKey(), JSON.stringify(raw)); } catch (e) { /* storage unavailable */ }
   };
 
   store.raw = () => db.raw;
@@ -133,6 +150,9 @@
 
   store.eventsIn = (seasonId) => db.events.filter((e) => e.season === seasonId);
 
+  // Events that give league points: everything except the season playoffs.
+  store.leagueEventsIn = (seasonId) => store.eventsIn(seasonId).filter((e) => !store.isPlayoffs(e));
+
   store.formatsIn = function (seasonId) {
     return [...new Set(store.eventsIn(seasonId).map((e) => e.format))].sort((a, b) =>
       a === "Premier" ? -1 : b === "Premier" ? 1 : a.localeCompare(b)
@@ -145,7 +165,7 @@
   // before that, and so on. If still tied (e.g. after the first event of a season), the
   // better placement at the most recent event both players attended wins.
   store.standings = function (seasonId) {
-    const events = store.eventsIn(seasonId);
+    const events = store.leagueEventsIn(seasonId);
     const rows = new Map();
     events.forEach((ev, i) => {
       for (const r of db.resultsByEvent.get(ev.id) || []) {
@@ -269,6 +289,44 @@
       const played = c.wins + c.losses + c.draws;
       return { ...c, winRate: played ? c.wins / played : 0, pointsPerEvent: c.points / c.events };
     });
+  };
+
+  // ---- Season playoffs ----------------------------------------------------
+
+  // Bracket of a season's playoffs: semifinal 1 is seed 1 vs 4, semifinal 2 is seed 2 vs 3.
+  // Results are saved in seed order, so seeds stay as entered even if the standings change later.
+  // Matches without a result yet come back as pending pairings (result "").
+  store.playoffs = function (seasonId) {
+    const event = store.event(store.playoffEventId(seasonId));
+    if (!event) return null;
+    const matches = db.matchesByEvent.get(event.id) || [];
+    const find = (name) => matches.find((m) => m.roundName === name) || null;
+    const results = db.resultsByEvent.get(event.id) || [];
+    const byPlayer = new Map(results.map((r) => [r.player, r]));
+    const sf1 = find("Semifinal 1");
+    const sf2 = find("Semifinal 2");
+    const order = sf1 && sf2 ? [sf1.p1, sf2.p1, sf2.p2, sf1.p2] : results.map((r) => r.player);
+    const seeds = order.map((player, i) => ({ seed: i + 1, player, result: byPlayer.get(player) || {} }));
+    const winner = (m) => (m && (m.result === "p1" || m.result === "p2") ? (m.result === "p1" ? m.p1 : m.p2) : null);
+    const pending = (p1, p2) => (p1 && p2 ? { p1, p2, g1: 0, g2: 0, gd: 0, result: "" } : null);
+    const semis = [sf1 || pending(order[0], order[3]), sf2 || pending(order[1], order[2])];
+    const final = find("Final") || pending(winner(semis[0]), winner(semis[1]));
+    return {
+      event, seeds, semis, final, winner,
+      champion: winner(final),
+      seedOf: (key) => (seeds.find((s) => s.player === key) || {}).seed,
+    };
+  };
+
+  // The next scheduled playoffs on the calendar for a season (by id, or the first Playoffs entry after the season starts).
+  store.playoffsCalendarEntry = function (seasonId) {
+    const season = store.season(seasonId);
+    if (!season) return null;
+    const entries = db.raw.calendar.filter((c) => c.type === "Playoffs");
+    const latest = season.until === "9999-12-31" ? season.until : shiftDays(season.until, 60);
+    return entries.find((c) => c.id === store.playoffEventId(seasonId))
+      || entries.filter((c) => c.date >= season.start && c.date <= latest).sort((a, b) => a.date.localeCompare(b.date))[0]
+      || null;
   };
 
   // ---- Calendar --------------------------------------------------------

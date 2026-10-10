@@ -9,6 +9,7 @@
   const TABS = [
     ["import", "Add event"],
     ["events", "Events"],
+    ["playoffs", "Playoffs"],
     ["players", "Players"],
     ["calendar", "Calendar"],
     ["seasons", "Seasons"],
@@ -23,6 +24,7 @@
     playerFilter: "",
     calEdit: null,
     seasonEdit: null,
+    po: null,
   };
   let root = null;
 
@@ -78,7 +80,7 @@
       ? `<div class="notice notice--${state.notice.type}">${esc(state.notice.text)}</div>`
       : "";
     const busy = state.busy ? `<div class="busy"><span class="spinner"></span>${esc(state.busy)}</div>` : "";
-    const body = { import: importView, events: eventsView, players: playersView, calendar: calendarView, seasons: seasonsView }[state.tab]();
+    const body = { import: importView, events: eventsView, playoffs: playoffsView, players: playersView, calendar: calendarView, seasons: seasonsView }[state.tab]();
 
     return `${head}
       <div class="ed-top"><div class="tabs">${tabs}</div><button class="link-btn" data-action="logout">Log out</button></div>
@@ -165,10 +167,14 @@
           <small class="muted">${record} · ${p.points} pts${finish}</small>
         </div>
       </div>
-      <button type="button" class="picker-btn${p.leader ? " aspect-tint" : ""}" style="${leaderStyle(p.leader)}" data-pick="leader" data-i="${i}">${leaderButton(p.leader)}</button>
-      <button type="button" class="picker-btn" data-pick="base" data-i="${i}">${baseButton(p.base)}</button>
+      ${pickerButtons(p, i, "draft")}
       <label class="ed-check"><input type="checkbox" data-league="${i}" ${p.counted ? "checked" : ""}><span>League</span></label>
     </div>`;
+  }
+
+  function pickerButtons(row, i, scope) {
+    return `<button type="button" class="picker-btn${row.leader ? " aspect-tint" : ""}" style="${leaderStyle(row.leader)}" data-pick="leader" data-i="${i}" data-scope="${scope}">${leaderButton(row.leader)}</button>
+      <button type="button" class="picker-btn" data-pick="base" data-i="${i}" data-scope="${scope}">${baseButton(row.base)}</button>`;
   }
 
   function leaderStyle(id) {
@@ -288,6 +294,198 @@
       <tbody>${rows}</tbody></table></div>`;
   }
 
+  // ---- Season playoffs ---------------------------------------------------
+
+  const PO_MATCHES = [
+    { key: "sf1", label: "Semifinal 1 · 1st vs 4th", seeds: [0, 3] },
+    { key: "sf2", label: "Semifinal 2 · 2nd vs 3rd", seeds: [1, 2] },
+  ];
+
+  // Form state for one season's playoffs: from the saved event, or seeded from the standings.
+  function playoffDraft(seasonId) {
+    const saved = store.playoffs(seasonId);
+    const entry = store.playoffsCalendarEntry(seasonId);
+    const scheduled = { time: entry ? entry.time : "", notes: entry ? entry.notes : "" };
+    if (saved) {
+      const score = (m) => (m && m.result ? [String(m.g1), String(m.g2)] : ["", ""]);
+      return {
+        seasonId, existing: true, date: saved.event.date, format: saved.event.format, ...scheduled,
+        seeds: saved.seeds.map((s) => ({ player: s.player, leader: s.result.leader || "", base: s.result.base || "" })),
+        scores: { sf1: score(saved.semis[0]), sf2: score(saved.semis[1]), final: score(saved.final) },
+      };
+    }
+    const top = store.standings(seasonId).slice(0, 4);
+    return {
+      seasonId, existing: false, date: entry ? entry.date : ui.today(), format: "Premier", ...scheduled,
+      seeds: [0, 1, 2, 3].map((i) => ({ player: top[i] ? top[i].player : "", leader: "", base: "" })),
+      scores: { sf1: ["", ""], sf2: ["", ""], final: ["", ""] },
+    };
+  }
+
+  // Games won as numbers, null when the match isn't entered yet, or an error message.
+  function parseScore(pair) {
+    const [a, b] = pair.map((v) => String(v).trim());
+    if (a === "" && b === "") return null;
+    if (a === "" || b === "") return "Enter both scores of a match, or leave both empty.";
+    const g = [Number(a), Number(b)];
+    if (!g.every((n) => Number.isInteger(n) && n >= 0)) return "Scores must be whole numbers.";
+    if (g[0] === g[1]) return "Playoff matches need a winner, so the scores can't be equal.";
+    return g;
+  }
+
+  function semiWinner(match, po) {
+    const g = parseScore(po.scores[match.key]);
+    if (!Array.isArray(g)) return "";
+    return po.seeds[match.seeds[g[0] > g[1] ? 0 : 1]].player;
+  }
+
+  function playoffsView() {
+    const seasons = [...store.seasons()].reverse();
+    if (!seasons.length) return ui.empty("No seasons yet", "Create a season first under Seasons.");
+    if (!state.po || !store.season(state.po.seasonId)) state.po = playoffDraft(store.currentSeasonId());
+    const po = state.po;
+    const season = store.season(po.seasonId);
+    const entry = store.playoffsCalendarEntry(po.seasonId);
+
+    const seasonPicker = `<label class="field"><span>Season</span><select data-po-season>${seasons
+      .map((s) => `<option value="${esc(s.id)}"${s.id === po.seasonId ? " selected" : ""}>${esc(s.name)}</option>`).join("")}</select></label>`;
+
+    const schedule = `<form class="ed-card" data-form="po-schedule">
+        <h3>1. Put it on the calendar</h3>
+        <p class="page-sub">${entry
+          ? `On the calendar: <b>${ui.formatDate(entry.date, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${entry.time ? ` at ${esc(entry.time)}` : ""}</b>`
+          : "Not on the calendar yet."}</p>
+        <div class="ed-fields">
+          <label class="field"><span>Date</span><input type="date" data-po-field="date" value="${esc(po.date)}" required></label>
+          <label class="field"><span>Time</span><input type="time" data-po-field="time" value="${esc(po.time)}"></label>
+          <label class="field field--grow"><span>Notes</span><input data-po-field="notes" value="${esc(po.notes)}" placeholder="Optional"></label>
+        </div>
+        <div class="ed-form-actions"><button class="btn btn--primary">${entry ? "Update calendar" : "Add to calendar"}</button></div>
+      </form>`;
+
+    const standings = store.standings(po.seasonId);
+    const ranked = new Set(standings.map((r) => r.player));
+    const others = store.allPlayers().filter((p) => !ranked.has(p.key)).sort((a, b) => a.name.localeCompare(b.name));
+    const playerOptions = (selected) => `<option value="">Choose player…</option>
+      <optgroup label="${esc(season.name)} standings">${standings
+        .map((r) => `<option value="${esc(r.player)}"${r.player === selected ? " selected" : ""}>${r.rank}. ${esc(ui.playerName(r.player))} (${r.points} pts)</option>`).join("")}</optgroup>
+      ${others.length ? `<optgroup label="Other players">${others
+        .map((p) => `<option value="${esc(p.key)}"${p.key === selected ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</optgroup>` : ""}`;
+
+    const seedRows = po.seeds.map((seed, i) => `<div class="ed-player">
+        <div class="ed-player-main"><span class="po-seed">${i + 1}</span><select class="input-sm" data-po-player="${i}">${playerOptions(seed.player)}</select></div>
+        ${pickerButtons(seed, i, "playoff")}
+        <span></span>
+      </div>`).join("");
+
+    const name = (key, fallback) => esc(key ? ui.playerName(key) : fallback);
+    const scoreInputs = (key) => po.scores[key].map((v, side) =>
+      `<input class="input-sm po-score-input" type="number" min="0" max="9" inputmode="numeric" data-po-score="${key}" data-side="${side}" value="${esc(v)}" aria-label="Games won">`);
+    const matchRow = (key, label, a, b) => {
+      const [x, y] = scoreInputs(key);
+      return `<div class="po-score-row"><span class="po-score-label">${label}</span>
+        <span class="po-score-name po-score-name--left" ${key === "final" ? 'data-final-name="0"' : ""}>${a}</span>${x}<span class="muted">–</span>${y}
+        <span class="po-score-name" ${key === "final" ? 'data-final-name="1"' : ""}>${b}</span></div>`;
+    };
+    const matches = PO_MATCHES.map((m) =>
+      matchRow(m.key, m.label, name(po.seeds[m.seeds[0]].player, `Seed ${m.seeds[0] + 1}`), name(po.seeds[m.seeds[1]].player, `Seed ${m.seeds[1] + 1}`))).join("")
+      + matchRow("final", "Final", name(semiWinner(PO_MATCHES[0], po), "Winner of semifinal 1"), name(semiWinner(PO_MATCHES[1], po), "Winner of semifinal 2"));
+
+    const results = `<section class="ed-card">
+        <h3>2. Bracket and results</h3>
+        <p class="footnote">Seeds come from the ${esc(season.name)} standings; change a player if someone can't play.
+          Enter the games each player won. Matches without scores are shown as "not played yet", so you can post the bracket before the event.</p>
+        <div class="ed-fields"><label class="field"><span>Format</span>${select("format", SWU.config.formats, po.format, 'data-po-field="format"')}</label></div>
+        <div class="ed-players">
+          <div class="ed-player ed-player--head"><span>Seed</span><span>Leader</span><span>Base</span><span></span></div>
+          ${seedRows}
+        </div>
+        <h4 class="section-title">Matches</h4>
+        <div class="po-scores">${matches}</div>
+      </section>
+      <div class="ed-savebar">
+        ${po.existing ? `<button class="btn btn--danger" data-action="po-delete">Delete playoffs</button>` : ""}
+        <button class="btn btn--primary" data-action="po-save">Save playoffs</button>
+      </div>`;
+
+    const viewLink = po.existing ? `<a href="#/event/${encodeURIComponent(store.playoffEventId(po.seasonId))}">View the bracket ↗</a>` : "";
+    return `<div class="ed-toolbar">${seasonPicker}${viewLink}</div>${schedule}${results}`;
+  }
+
+  // Keep the final's player names in step while scores are typed (no redraw, so focus stays put).
+  function refreshFinalNames() {
+    PO_MATCHES.forEach((m, i) => {
+      const el = root.querySelector(`[data-final-name="${i}"]`);
+      const key = semiWinner(m, state.po);
+      if (el) el.textContent = key ? ui.playerName(key) : `Winner of semifinal ${i + 1}`;
+    });
+  }
+
+  function savePlayoffs() {
+    const po = state.po;
+    const season = store.season(po.seasonId);
+    const keys = po.seeds.map((s) => s.player);
+    const fail = (text) => { notify("error", text); draw(); };
+    if (keys.some((k) => !k)) return fail("Choose a player for every seed.");
+    if (new Set(keys).size !== 4) return fail("A player can only have one seed.");
+    if (!po.date) return fail("Choose the date of the playoffs.");
+
+    const scores = { sf1: parseScore(po.scores.sf1), sf2: parseScore(po.scores.sf2), final: parseScore(po.scores.final) };
+    const problem = Object.values(scores).find((v) => typeof v === "string");
+    if (problem) return fail(problem);
+    if (scores.final && !(scores.sf1 && scores.sf2)) return fail("Enter both semifinals before the final.");
+
+    const match = (round, roundName, p1, p2, g) => ({ round, roundName, phase: "top", p1, p2, g1: g[0], g2: g[1], gd: 0, result: g[0] > g[1] ? "p1" : "p2" });
+    const winner = (m) => (m.result === "p1" ? m.p1 : m.p2);
+    const loser = (m) => (m.result === "p1" ? m.p2 : m.p1);
+    const matches = [];
+    if (scores.sf1) matches.push(match(1, "Semifinal 1", keys[0], keys[3], scores.sf1));
+    if (scores.sf2) matches.push(match(1, "Semifinal 2", keys[1], keys[2], scores.sf2));
+    if (scores.final) matches.push(match(2, "Final", winner(matches[0]), winner(matches[1]), scores.final));
+
+    const finish = new Map();
+    matches.forEach((m) => {
+      if (m.roundName === "Final") {
+        finish.set(winner(m), ["Champion", 1]);
+        finish.set(loser(m), ["Finalist", 2]);
+      } else {
+        finish.set(loser(m), ["Semifinalist", 3]);
+      }
+    });
+    const record = (key) => matches.reduce((r, m) => {
+      if (m.p1 === key || m.p2 === key) r[winner(m) === key ? 0 : 1]++;
+      return r;
+    }, [0, 0]);
+
+    // Results are saved in seed order; the site reads the seeds back from that order and the semifinals.
+    const results = po.seeds.map((seed) => {
+      const [label, rank] = finish.get(seed.player) || ["", 0];
+      const [wins, losses] = record(seed.player);
+      return { player: seed.player, leader: seed.leader, base: seed.base, points: 0, bonus: 0, wins, losses, draws: 0, rank, finish: label, counted: true };
+    });
+    const event = { id: store.playoffEventId(po.seasonId), date: po.date, name: `${season.name} Playoffs`, type: "Playoffs", format: po.format, melee: "" };
+    const champion = scores.final ? ui.playerName(winner(matches[2])) : "";
+
+    run("Saving the playoffs…", async () => {
+      await api.call("saveEvent", { event, results, matches, players: [] });
+      state.po = playoffDraft(po.seasonId);
+    }, champion
+      ? `Saved. ${champion} is the ${season.name} champion! The bracket now shows above the ${season.name} standings.`
+      : `Saved the ${season.name} playoffs. The bracket now shows above the ${season.name} standings.`);
+  }
+
+  function saveSchedule() {
+    const po = state.po;
+    const season = store.season(po.seasonId);
+    if (!po.date) return;
+    const existing = store.playoffsCalendarEntry(po.seasonId);
+    const entry = {
+      id: existing ? existing.id : store.playoffEventId(po.seasonId),
+      date: po.date, time: po.time, type: "Playoffs", title: `${season.name} Playoffs`, format: po.format, notes: po.notes, melee: "",
+    };
+    run("Saving to the calendar…", () => api.call("saveCalendar", { entries: [entry] }), `${season.name} playoffs are on the calendar.`);
+  }
+
   // ---- Players ---------------------------------------------------------
 
   function playersView() {
@@ -356,7 +554,7 @@
         <div class="ed-fields">
           <label class="field"><span>Date</span><input type="date" name="date" value="${esc(entry.date)}" required></label>
           <label class="field"><span>Time</span><input type="time" name="time" value="${esc(entry.time)}"></label>
-          <label class="field"><span>Type</span>${select("type", SWU.config.eventTypes, entry.type)}</label>
+          <label class="field"><span>Type</span>${select("type", SWU.config.calendarTypes, entry.type)}</label>
           <label class="field"><span>Format</span>${select("format", SWU.config.formats, entry.format)}</label>
           <label class="field field--grow"><span>Title</span><input name="title" value="${esc(entry.title)}" required></label>
           <label class="field field--grow"><span>Notes</span><input name="notes" value="${esc(entry.notes)}" placeholder="Optional"></label>
@@ -456,6 +654,8 @@
         await api.call("saveCalendar", { entries: [entry] });
         state.calEdit = null;
       }, "Calendar saved.");
+    } else if (form.dataset.form === "po-schedule") {
+      saveSchedule();
     } else if (form.dataset.form === "season") {
       const season = { ...data, id: state.seasonEdit.id || newId("s") };
       run("Saving season…", async () => {
@@ -493,7 +693,24 @@
         return;
       case "save-event":
         return saveDraft();
+      case "po-save":
+        return savePlayoffs();
+      case "po-delete": {
+        const season = store.season(state.po.seasonId);
+        if (!confirm(`Delete the ${season.name} playoffs (bracket and results)? The calendar entry stays.`)) return;
+        return run("Deleting the playoffs…", async () => {
+          await api.call("deleteEvent", { id: store.playoffEventId(state.po.seasonId) });
+          state.po = playoffDraft(state.po.seasonId);
+        }, `Deleted the ${season.name} playoffs.`);
+      }
       case "edit-event":
+        if (store.isPlayoffs(store.event(id))) {
+          state.po = playoffDraft(store.event(id).season);
+          state.tab = "playoffs";
+          state.notice = null;
+          draw();
+          return window.scrollTo(0, 0);
+        }
         state.draft = draftFromStored(id);
         state.tab = "import";
         state.notice = null;
@@ -566,11 +783,26 @@
       return;
     }
     if (t.dataset.pleague !== undefined) return editPlayer(t.dataset.pleague, { league: t.checked });
+    if (t.dataset.poSeason !== undefined) {
+      state.po = playoffDraft(t.value);
+      state.notice = null;
+      return draw();
+    }
+    if (t.dataset.poPlayer !== undefined) {
+      state.po.seeds[Number(t.dataset.poPlayer)].player = t.value;
+      return draw();
+    }
+    if (t.dataset.poField) state.po[t.dataset.poField] = t.value;
   }
 
   function onInput(e) {
     const t = e.target;
     if (t.dataset.field === "name" && state.draft) state.draft.event.name = t.value;
+    if (t.dataset.poField && state.po) state.po[t.dataset.poField] = t.value;
+    if (t.dataset.poScore && state.po) {
+      state.po.scores[t.dataset.poScore][Number(t.dataset.side)] = t.value;
+      refreshFinalNames();
+    }
     if (t.dataset.nick !== undefined) editPlayer(t.dataset.nick, { nickname: t.value });
     if (t.dataset.actionInput === "player-filter") {
       state.playerFilter = t.value;
@@ -635,6 +867,7 @@
     closePicker();
     const kind = btn.dataset.pick;
     const index = Number(btn.dataset.i);
+    const scope = btn.dataset.scope || "draft";
     const pop = document.createElement("div");
     pop.className = "picker-pop";
     pop.innerHTML = `<input class="picker-search" placeholder="Search ${kind === "leader" ? "leaders" : "bases or base cards"}…" autocomplete="off" spellcheck="false">
@@ -649,7 +882,7 @@
     pop.style.top = `${rect.bottom + window.scrollY + 4}px`;
 
     const options = pickerOptions(kind);
-    picker = { pop, btn, kind, index, options, visible: options, active: 0 };
+    picker = { pop, btn, kind, index, scope, options, visible: options, active: 0 };
 
     const input = pop.querySelector(".picker-search");
     input.addEventListener("input", () => filterPicker(input.value));
@@ -700,9 +933,14 @@
     }
   }
 
+  // The row a picker writes to: a player in the Melee import, or a seed in the playoffs.
+  function pickerRow(scope, index) {
+    return scope === "playoff" ? state.po.seeds[index] : state.draft.players[index];
+  }
+
   function choose(value) {
-    const { kind, index, btn } = picker;
-    const player = state.draft.players[index];
+    const { kind, index, scope, btn } = picker;
+    const player = pickerRow(scope, index);
     player[kind] = value;
     btn.innerHTML = kind === "leader" ? leaderButton(value) : baseButton(value);
     if (kind === "leader") {
@@ -710,10 +948,10 @@
       btn.classList.toggle("aspect-tint", !!value);
     }
     const counter = root.querySelector("#deck-count");
-    if (counter) counter.textContent = deckCount();
+    if (counter && state.draft) counter.textContent = deckCount();
     closePicker();
     // Move straight on to the next empty choice to speed up data entry.
-    const next = kind === "leader" ? root.querySelector(`[data-pick="base"][data-i="${index}"]`) : null;
+    const next = kind === "leader" ? root.querySelector(`[data-pick="base"][data-i="${index}"][data-scope="${scope}"]`) : null;
     if (next && value && !player.base) openPicker(next);
     else btn.focus();
   }

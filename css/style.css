@@ -12,6 +12,8 @@
   --accent-soft: rgba(255, 232, 31, 0.12);
   --holo: #5ec8ff;        /* hologram blue */
   --holo-soft: rgba(94, 200, 255, 0.12);
+  --playoff: #c08cff;      /* season playoffs */
+  --playoff-soft: rgba(192, 140, 255, 0.14);
 
   --win: #3ecf7a;
   --loss: #ff5a5f;
@@ -74,6 +76,18 @@ button { font: inherit; color: inherit; }
   background: var(--accent);
 }
 .banner--preview { color: #021a26; background: var(--holo); }
+.banner--sandbox { color: #1c0833; background: var(--playoff); }
+.banner a { color: inherit; font-weight: 700; text-decoration: underline; }
+.banner-btn {
+  margin: 0 6px;
+  padding: 2px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.25);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
 
 .site-header {
   position: sticky;
@@ -243,29 +257,20 @@ button { font: inherit; color: inherit; }
 .podium--2 .rank span { color: #111; background: var(--silver); }
 .podium--3 .rank span { color: #1a0d00; background: var(--bronze); }
 
-/* Playoff spots: accent stripe + soft glow on the qualifying rows, then a dashed cut line. */
+/* Playoff spots: accent stripe + soft glow on the qualifying rows, dashed line under the last one. */
 .standings tr.playoff { background: linear-gradient(90deg, var(--accent-soft), transparent 55%); }
 .standings tr.playoff td:first-child { box-shadow: inset 4px 0 0 var(--accent); }
-.standings tr.cutline:hover { background: none; }
-.standings tr.cutline td { padding: 0; border-bottom: 1px solid var(--line); }
-.cutline span {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 12px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  white-space: nowrap;
-}
-.cutline i { font-style: normal; }
-.cutline b { font-weight: inherit; }
-.cutline span::before, .cutline span::after {
-  content: "";
-  flex: 1;
-  border-top: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent);
+.standings tr.playoff-last td { border-bottom: 2px dashed color-mix(in srgb, var(--accent) 60%, transparent); }
+
+.legend { display: flex; align-items: center; gap: 10px; margin: 14px 0 0; font-size: 14px; color: var(--muted); }
+.legend b { color: var(--text); }
+.legend-swatch {
+  flex: none;
+  width: 34px;
+  height: 18px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 30%, transparent), transparent);
+  box-shadow: inset 4px 0 0 var(--accent);
 }
 
 .player-cell { min-width: 140px; }
@@ -380,6 +385,7 @@ button { font: inherit; color: inherit; }
 }
 .badge--weekly { color: var(--holo); background: var(--holo-soft); }
 .badge--showdown { color: var(--accent); background: var(--accent-soft); }
+.badge--playoffs { color: var(--playoff); background: var(--playoff-soft); }
 
 .outcome {
   display: inline-grid;
@@ -558,6 +564,7 @@ button { font: inherit; color: inherit; }
 .cal-chip:hover { text-decoration: none; filter: brightness(1.2); }
 .cal-chip--weekly { color: var(--holo); background: var(--holo-soft); border-left: 3px solid var(--holo); }
 .cal-chip--showdown { color: var(--accent); background: var(--accent-soft); border-left: 3px solid var(--accent); }
+.cal-chip--playoffs { color: var(--playoff); background: var(--playoff-soft); border-left: 3px solid var(--playoff); }
 .cal-chip--next { box-shadow: 0 0 0 1px currentColor; }
 
 .upcoming { display: flex; flex-direction: column; gap: 10px; }
@@ -577,6 +584,101 @@ button { font: inherit; color: inherit; }
 .cal-card-title { font-weight: 700; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .cal-card-notes { margin: 4px 0 0; font-size: 14px; }
 .cal-detail { max-width: 420px; }
+
+/* ---- Season playoffs ----------------------------------------------- */
+.po {
+  margin-bottom: 24px;
+  padding: 18px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--playoff) 45%, var(--line));
+  background:
+    radial-gradient(ellipse 60% 80% at 100% 0%, var(--playoff-soft), transparent 70%),
+    var(--panel);
+}
+.po-head h2 { margin: 0; font: 800 20px var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; }
+.po-bracket {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(0, 1.15fr) minmax(200px, 0.8fr);
+  gap: 18px;
+  margin-top: 16px;
+  align-items: center;
+}
+.po-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.po-col-title { margin: 0; font: 600 12px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.po-match {
+  position: relative;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.po-match-label {
+  display: block;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
+}
+.po-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 30px; gap: 8px; align-items: center; padding: 8px 10px; }
+.po-row + .po-row { border-top: 1px solid var(--line); }
+.po-row--win { background: color-mix(in srgb, var(--win) 9%, transparent); }
+.po-row--loss { opacity: 0.6; }
+.po-seed {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--playoff);
+  background: var(--playoff-soft);
+}
+.po-row--pending .po-seed:empty { background: none; }
+.po-player { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.po-deck { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.po-deck .leader-thumb { width: 56px; height: 19px; }
+.po-deck .base { font-size: 13px; padding: 2px 9px 2px 5px; }
+.po-deck .base-icon { width: 18px; height: 18px; }
+.po-name .player-link { font-size: 16px; }
+.po-score { text-align: right; font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.po-row--win .po-score { color: var(--win); }
+.po-champion {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px;
+  text-align: center;
+  border-radius: var(--radius);
+  border: 1px solid var(--gold);
+  background: linear-gradient(180deg, rgba(255, 213, 74, 0.14), transparent 70%);
+  box-shadow: 0 0 24px rgba(255, 213, 74, 0.12);
+}
+.po-champion--pending { border-style: dashed; border-color: var(--line-strong); background: none; box-shadow: none; }
+.po-champion-label { font: 700 12px var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+.po-champion-art { width: 100%; max-width: 220px; border-radius: 10px; border: 1px solid var(--line-strong); }
+.po-champion-name .player-link { font-size: 22px; }
+.po-champion .po-deck { justify-content: center; }
+.po-finish { color: var(--playoff); font-weight: 700; }
+
+.po-upcoming {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 20px;
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  border: 1px solid color-mix(in srgb, var(--playoff) 40%, var(--line));
+  background: var(--playoff-soft);
+}
+.po-upcoming-when, .po-upcoming-pairs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.po-pair b { color: var(--playoff); }
+.po-pair i { font-style: normal; color: var(--muted); margin: 0 2px; }
 
 /* ---- Forms --------------------------------------------------------- */
 input, select, textarea { font: inherit; color: var(--text); }
@@ -718,6 +820,26 @@ input, select, textarea { font: inherit; color: var(--text); }
 .picker-clear { border: 0; border-top: 1px solid var(--line); background: none; padding: 8px; color: var(--muted); cursor: pointer; }
 .picker-clear:hover { color: var(--text); }
 
+.ed-player-main select.input-sm { max-width: none; flex: 1; min-width: 0; }
+.po-scores { display: flex; flex-direction: column; gap: 8px; }
+.po-score-row {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 64px 14px 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--panel-2);
+}
+.po-score-label { font-size: 13px; font-weight: 700; color: var(--playoff); }
+.po-score-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.po-score-name--left { text-align: right; }
+.po-score-input { text-align: center; font-size: 18px; font-weight: 700; }
+@media (max-width: 720px) {
+  .po-score-row { grid-template-columns: minmax(0, 1fr) 52px 10px 52px minmax(0, 1fr); }
+  .po-score-label { grid-column: 1 / -1; }
+}
+
 .ed-savebar {
   position: sticky;
   bottom: 0;
@@ -751,6 +873,7 @@ input, select, textarea { font: inherit; color: var(--text); }
 /* ---- Responsive ---------------------------------------------------- */
 @media (max-width: 900px) {
   .split, .calendar-layout { grid-template-columns: 1fr; }
+  .po-bracket { grid-template-columns: 1fr; }
   .split-detail { position: static; }
 }
 
@@ -780,6 +903,7 @@ input, select, textarea { font: inherit; color: var(--text); }
   .cal-chip-time { display: none; }
   .cal-chip--weekly { background: var(--holo); }
   .cal-chip--showdown { background: var(--accent); }
+  .cal-chip--playoffs { background: var(--playoff); }
   .cal-weekday { font-size: 10px; letter-spacing: 0; }
 
   .deck-art { width: 100%; max-width: 340px; }

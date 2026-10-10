@@ -72,6 +72,11 @@ The live site always shows the `main` branch on GitHub. New ideas are built on a
 The preview reads the live Google Sheet, so all pages show real data. Saving in the editor during a
 preview still changes the live sheet.
 
+**Sandbox:** add `?sandbox` to the preview address (`preview.cmd` prints it, e.g. `http://localhost:8080/?sandbox`).
+The site then runs the real script (`apps-script/Code.gs`) inside your browser on fictional practice data, so the
+editor can be tried freely. The editor password there is `sandbox`. Practice data is kept only in that browser;
+"Reset practice data" in the purple banner starts over. Melee import doesn't work in the sandbox.
+
 ## When a new set comes out
 
 Run these to refresh the leader and base lists. The second one needs Pillow: `pip install pillow`.
