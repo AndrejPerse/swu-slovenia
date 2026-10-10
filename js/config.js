@@ -3,7 +3,7 @@ window.SWU = window.SWU || {};
 SWU.config = {
   // Paste the Google Apps Script web app URL here once it is deployed.
   // While this is empty the site shows the bundled sample data.
-  apiUrl: "",
+  apiUrl: "https://script.google.com/macros/s/AKfycbyRnzjWrncIMhiXBIRzGggJPRhVIduFvtCbAzvrOZ4cOMyQIvgBCmQExtUBgLlcxG1h/exec",
 
   leagueName: "SWU Slovenia",
 
@@ -20,7 +20,7 @@ SWU.config = {
   eventTypes: ["Weekly", "Showdown"],
 
   // Default start time for new weekly calendar entries.
-  weeklyTime: "18:00",
+  weeklyTime: "17:30",
 
   // Meta table: count top-cut matches in wins/losses/draws (league points never include them).
   metaIncludesTopCut: true,

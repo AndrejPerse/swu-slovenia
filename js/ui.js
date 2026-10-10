@@ -34,10 +34,19 @@
     return `<span class="aspects">${aspects.map((a) => `<i class="aspect aspect--${ASPECT_CLASS[a] || "none"}" title="${ui.esc(a)}"></i>`).join("")}</span>`;
   };
 
+  const COLOR_VARS = { Vigilance: "--vig", Command: "--cmd", Aggression: "--agg", Cunning: "--cun" };
+
+  // Inline CSS variables for a leader's color tint. Heroism/Villainy are ignored;
+  // a two-color leader gets both colors (split half-half by the .aspect-tint class).
+  ui.leaderStyle = function (leader) {
+    const colors = [...new Set(leader.aspects.filter((a) => COLOR_VARS[a]))].map((a) => `var(${COLOR_VARS[a]})`);
+    return colors.length ? `--c1: ${colors[0]}; --c2: ${colors[1] || colors[0]};` : "";
+  };
+
   ui.leader = function (id, { compact = false } = {}) {
     const l = id && SWU.store.leader(id);
     if (!l) return `<span class="muted">—</span>`;
-    return `<span class="leader${compact ? " leader--compact" : ""}" title="${ui.esc(`${l.name}, ${l.subtitle}`)}">
+    return `<span class="leader aspect-tint${compact ? " leader--compact" : ""}" style="${ui.leaderStyle(l)}" title="${ui.esc(`${l.name}, ${l.subtitle}`)}">
       <img class="leader-thumb" src="${ui.esc(l.thumb)}" alt="" loading="lazy">
       <span class="leader-text"><span class="leader-name">${ui.esc(l.name)}</span><span class="leader-sub">${ui.esc(l.subtitle)}</span></span>
     </span>`;

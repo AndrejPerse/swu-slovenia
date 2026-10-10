@@ -165,10 +165,15 @@
           <small class="muted">${record} · ${p.points} pts${finish}</small>
         </div>
       </div>
-      <button type="button" class="picker-btn" data-pick="leader" data-i="${i}">${leaderButton(p.leader)}</button>
+      <button type="button" class="picker-btn${p.leader ? " aspect-tint" : ""}" style="${leaderStyle(p.leader)}" data-pick="leader" data-i="${i}">${leaderButton(p.leader)}</button>
       <button type="button" class="picker-btn" data-pick="base" data-i="${i}">${baseButton(p.base)}</button>
       <label class="ed-check"><input type="checkbox" data-league="${i}" ${p.counted ? "checked" : ""}><span>League</span></label>
     </div>`;
+  }
+
+  function leaderStyle(id) {
+    const l = id && store.leader(id);
+    return l ? ui.leaderStyle(l) : "";
   }
 
   function leaderButton(id) {
@@ -606,9 +611,10 @@
     const usedText = used ? `<span class="picker-used">${used}×</span>` : "";
     if (kind === "leader") {
       return `<li role="option" class="picker-option${active ? " active" : ""}" data-value="${esc(item.id)}">
-        <img class="leader-thumb" src="${esc(item.thumb)}" alt="" loading="lazy">
-        <span class="picker-text"><b>${esc(item.name)}</b><small>${esc(item.subtitle)} · ${esc(item.set)}</small></span>
-        ${ui.aspectDots(item.aspects)}${usedText}
+        <span class="leader aspect-tint" style="${ui.leaderStyle(item)}">
+          <img class="leader-thumb" src="${esc(item.thumb)}" alt="" loading="lazy">
+          <span class="picker-text"><b>${esc(item.name)}</b><small>${esc(item.subtitle)} · ${esc(item.set)}</small></span>
+        </span>${usedText}
       </li>`;
     }
     const detail = item.kind === "common" ? `${item.hp} HP · ${item.cards.slice(0, 3).join(", ")}${item.cards.length > 3 ? "…" : ""}` : `${item.hp} HP`;
@@ -692,6 +698,10 @@
     const player = state.draft.players[index];
     player[kind] = value;
     btn.innerHTML = kind === "leader" ? leaderButton(value) : baseButton(value);
+    if (kind === "leader") {
+      btn.setAttribute("style", leaderStyle(value));
+      btn.classList.toggle("aspect-tint", !!value);
+    }
     const counter = root.querySelector("#deck-count");
     if (counter) counter.textContent = deckCount();
     closePicker();

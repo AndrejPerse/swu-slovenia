@@ -249,7 +249,34 @@ button { font: inherit; color: inherit; }
 .points { font-size: 20px; font-weight: 700; color: var(--accent); }
 
 /* ---- Leader + base chips ------------------------------------------- */
-.leader { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+.leader {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 4px 12px 4px 4px;
+  border-radius: 9px;
+}
+.leader--compact { padding: 3px 10px 3px 3px; border-radius: 7px; }
+
+/* Leader color: border + background in the leader's aspect color, like the base chips.
+   Two-color leaders are split half-half (--c1 left, --c2 right); colorless leaders stay grey.
+   The padding-box layer is opaque so the border gradient doesn't show through. */
+.aspect-tint, .picker-btn.aspect-tint {
+  --c1: var(--muted);
+  --c2: var(--c1);
+  border: 1px solid transparent;
+  background:
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--c1) 26%, var(--panel)) 50%,
+      color-mix(in srgb, var(--c2) 26%, var(--panel)) 50%) padding-box,
+    linear-gradient(90deg,
+      color-mix(in srgb, var(--c1) 90%, var(--panel)) 50%,
+      color-mix(in srgb, var(--c2) 90%, var(--panel)) 50%) border-box;
+}
+.aspect-tint .leader-thumb { border: 0; }
+.aspect-tint .leader-sub, .aspect-tint .picker-text small { color: color-mix(in srgb, var(--text) 70%, transparent); }
+
 .leader-thumb {
   width: 96px;
   height: 32px;
@@ -642,6 +669,8 @@ input, select, textarea { font: inherit; color: var(--text); }
 .picker-list { list-style: none; margin: 0; padding: 0 4px 4px; overflow-y: auto; }
 .picker-option { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 6px; cursor: pointer; }
 .picker-option .leader-thumb { width: 72px; height: 24px; }
+.picker-option .leader { flex: 1; }
+.picker-btn.aspect-tint:hover { filter: brightness(1.15); }
 .picker-option .picker-text { flex: 1; }
 .picker-option:hover, .picker-option.active { background: var(--panel-hover); }
 .picker-option.active { box-shadow: inset 0 0 0 1px var(--holo); }

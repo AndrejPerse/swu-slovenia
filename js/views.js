@@ -30,7 +30,7 @@
         const matchPoints = r.points - r.events;
         return `<tr class="row-link${r.rank <= 3 ? ` podium podium--${r.rank}` : ""}" data-href="#/player/${encodeURIComponent(r.player)}">
           <td class="rank"><span>${r.rank}</span></td>
-          <td class="player-cell">${ui.playerLink(r.player)}<span class="sub-record">${ui.record(r.wins, r.losses, r.draws)}</span></td>
+          <td class="player-cell">${ui.playerLink(r.player)}</td>
           <td class="num points" title="${matchPoints} from matches + ${r.events} for participation">${r.points}</td>
           <td class="num">${r.weeklies}</td>
           <td class="num">${r.showdowns}</td>
