@@ -19,6 +19,9 @@ SWU.config = {
   // Points every player gets for attending an event, on top of their Melee points.
   participationPoints: 1,
 
+  // How many players at the top of the standings qualify for the end-of-season playoffs.
+  playoffSpots: 4,
+
   formats: ["Premier", "Eternal", "Sealed", "Draft"],
   eventTypes: ["Weekly", "Showdown"],
 

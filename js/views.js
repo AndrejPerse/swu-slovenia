@@ -25,17 +25,23 @@
     const head = pageHead("Standings", `${seasonLabel(seasonId)} · ${events.length} event${events.length === 1 ? "" : "s"} · ${rows.length} players`);
     if (!rows.length) return head + ui.empty("No results yet", "Standings appear after the first event of the season is entered.");
 
+    // The top players qualify for the end-of-season playoffs; a cut line separates them from the rest.
+    const spots = SWU.config.playoffSpots;
+    const lastQualified = rows.reduce((last, r, i) => (r.rank <= spots ? i : last), -1);
+    const cutLine = `<tr class="cutline"><td colspan="6"><span><i>Playoff cut<b class="long"> · top ${spots} play the single-elimination playoffs</b></i></span></td></tr>`;
+
     const body = rows
-      .map((r) => {
+      .map((r, i) => {
         const matchPoints = r.points - r.events;
-        return `<tr class="row-link${r.rank <= 3 ? ` podium podium--${r.rank}` : ""}" data-href="#/player/${encodeURIComponent(r.player)}">
+        const classes = ["row-link", r.rank <= 3 ? `podium podium--${r.rank}` : "", r.rank <= spots ? "playoff" : ""].filter(Boolean).join(" ");
+        return `<tr class="${classes}" data-href="#/player/${encodeURIComponent(r.player)}">
           <td class="rank"><span>${r.rank}</span></td>
           <td class="player-cell">${ui.playerLink(r.player)}</td>
           <td class="num points" title="${matchPoints} from matches + ${r.events} for participation">${r.points}</td>
           <td class="num">${r.weeklies}</td>
           <td class="num">${r.showdowns}</td>
           <td class="num">${r.events}</td>
-        </tr>`;
+        </tr>${i === lastQualified && i < rows.length - 1 ? cutLine : ""}`;
       })
       .join("");
 
