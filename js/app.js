@@ -112,6 +112,7 @@
     const thisMonth = SWU.ui.today().slice(0, 7);
     SWU.state.calMonth = thisMonth < SWU.config.calendarStart ? SWU.config.calendarStart : thisMonth;
     document.getElementById("sample-banner").hidden = !SWU.store.isSample();
+    document.getElementById("preview-banner").hidden = location.hostname === SWU.config.liveHost;
     if (SWU.config.logo) {
       document.querySelector(".brand-mark").innerHTML = `<img src="${SWU.ui.esc(SWU.config.logo)}" alt="">`;
     }

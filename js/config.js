@@ -7,6 +7,9 @@ SWU.config = {
 
   leagueName: "SWU Slovenia",
 
+  // The live site. Anywhere else (local file, preview server) a "Preview" banner is shown.
+  liveHost: "andrejperse.github.io",
+
   // Path to the league logo. Empty = text-only brand.
   logo: "assets/logo.png",
 

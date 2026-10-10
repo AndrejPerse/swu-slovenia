@@ -58,6 +58,20 @@ This keeps the same URL. Creating a *new* deployment would give a different URL.
 
 Every later `git push` updates the site within a minute or two.
 
+## Trying changes before they go live
+
+The live site always shows the `main` branch on GitHub. New ideas are built on a separate
+`preview/...` branch on this PC, so the live site doesn't change until they're approved.
+
+1. **Preview:** double-click `preview.cmd` in the project folder. The site opens on this PC, and the window
+   shows an address for phones on the same Wi-Fi. The first time, Windows may ask whether Python can use
+   the network: allow it for **private networks**. A blue "Preview" banner shows you're not on the live site.
+2. **Ship it:** the preview branch is merged into `main` and pushed, and the live site updates within a minute or two.
+3. **Drop it:** the preview branch is deleted and nothing changes on the live site.
+
+The preview reads the live Google Sheet, so all pages show real data. Saving in the editor during a
+preview still changes the live sheet.
+
 ## When a new set comes out
 
 Run these to refresh the leader and base lists. The second one needs Pillow: `pip install pillow`.

@@ -73,6 +73,7 @@ button { font: inherit; color: inherit; }
   color: #1a1600;
   background: var(--accent);
 }
+.banner--preview { color: #021a26; background: var(--holo); }
 
 .site-header {
   position: sticky;
