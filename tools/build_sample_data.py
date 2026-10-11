@@ -178,18 +178,18 @@ def main():
             results += res
             matches += mts
 
-    # Practice Season 1 playoffs, already played: seed 3 takes the title, seed 2 wins the 3rd place match.
+    # Practice Season 1 playoffs, already played: seed 3 takes the title, seed 4 wins the 3rd place match 2-0.
     s1_events = [e for e in events if e["id"].startswith("s1-")]
     seeds = standings(s1_events, results)[:4]
     po = "playoffs-s1"
     events.append({"id": po, "date": "2026-09-05", "name": "Practice Season 1 Playoffs", "type": "Playoffs", "format": "Premier", "melee": ""})
     games = [(seeds[0], seeds[3], 2, 0, "Semifinal 1", 1), (seeds[1], seeds[2], 1, 2, "Semifinal 2", 1),
-             (seeds[0], seeds[2], 1, 2, "Final", 2), (seeds[3], seeds[1], 1, 2, "3rd place", 2)]
+             (seeds[0], seeds[2], 1, 2, "Final", 2), (seeds[3], seeds[1], 2, 0, "3rd place", 2)]
     for p1, p2, g1, g2, name, rnd in games:
         matches.append({"event": po, "round": rnd, "roundName": name, "phase": "top", "p1": p1, "p2": p2,
                         "g1": g1, "g2": g2, "gd": 0, "result": "p1" if g1 > g2 else "p2"})
     po_finish = {seeds[2]: ("Champion", 1, 2, 0), seeds[0]: ("Finalist", 2, 1, 1),
-                 seeds[1]: ("3rd place", 3, 1, 1), seeds[3]: ("4th place", 4, 0, 2)}
+                 seeds[3]: ("3rd place", 3, 1, 1), seeds[1]: ("4th place", 4, 0, 2)}
     for p in seeds:
         label, rank, w, l = po_finish[p]
         leader, base = MAIN_DECK[p]

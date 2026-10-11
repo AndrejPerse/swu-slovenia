@@ -1955,11 +1955,11 @@ window.SWU_SAMPLE_DATA = {
    "base": "red-force28",
    "points": 0,
    "bonus": 0,
-   "wins": 1,
-   "losses": 1,
+   "wins": 0,
+   "losses": 2,
    "draws": 0,
-   "rank": 3,
-   "finish": "3rd place",
+   "rank": 4,
+   "finish": "4th place",
    "counted": true
   },
   {
@@ -1983,11 +1983,11 @@ window.SWU_SAMPLE_DATA = {
    "base": "red-30",
    "points": 0,
    "bonus": 0,
-   "wins": 0,
-   "losses": 2,
+   "wins": 1,
+   "losses": 1,
    "draws": 0,
-   "rank": 4,
-   "finish": "4th place",
+   "rank": 3,
+   "finish": "3rd place",
    "counted": true
   }
  ],
@@ -4627,10 +4627,10 @@ window.SWU_SAMPLE_DATA = {
    "phase": "top",
    "p1": "Lothcat",
    "p2": "BespinBob",
-   "g1": 1,
-   "g2": 2,
+   "g1": 2,
+   "g2": 0,
    "gd": 0,
-   "result": "p2"
+   "result": "p1"
   }
  ],
  "calendar": [
