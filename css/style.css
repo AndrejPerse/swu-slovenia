@@ -664,9 +664,6 @@ button { font: inherit; color: inherit; }
 .po-champion-art { width: 100%; max-width: 220px; border-radius: 10px; border: 1px solid var(--line-strong); }
 .po-champion-name .player-link { font-size: 22px; }
 .po-champion .po-deck { justify-content: center; }
-.po-podium { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 14px; color: var(--muted); }
-.po-podium b { color: var(--silver); }
-.po-podium span:last-child b { color: var(--bronze); }
 .po-finish { color: var(--playoff); font-weight: 700; }
 
 .po-upcoming {

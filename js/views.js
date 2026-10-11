@@ -127,19 +127,12 @@
     const champResult = champion ? (po.seeds.find((s) => s.player === champion) || {}).result || {} : null;
     const champLeader = champResult && store.leader(champResult.leader);
 
-    // Runner-up and 3rd place under the champion, once those matches are decided.
-    const places = [["2nd", po.loser(final)], ["3rd", po.winner(third)]].filter(([, key]) => key);
-    const podium = places.length
-      ? `<span class="po-podium">${places.map(([label, key]) => `<span><b>${label}</b> ${esc(ui.playerName(key))}</span>`).join("")}</span>`
-      : "";
-
     const championCard = champion
       ? `<div class="po-champion">
           <span class="po-champion-label">🏆 ${esc(season ? season.name : "Season")} champion</span>
           ${champLeader ? `<img class="po-champion-art" src="${esc(champLeader.art)}" alt="${esc(champLeader.name)}">` : ""}
           <span class="po-champion-name">${ui.playerLink(champion)}</span>
           <span class="po-deck">${ui.leader(champResult.leader, { compact: true })}${ui.base(champResult.base)}</span>
-          ${podium}
         </div>`
       : `<div class="po-champion po-champion--pending"><span class="po-champion-label">🏆 Champion</span><span class="muted">To be decided</span></div>`;
 
