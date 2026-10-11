@@ -1955,11 +1955,11 @@ window.SWU_SAMPLE_DATA = {
    "base": "red-force28",
    "points": 0,
    "bonus": 0,
-   "wins": 0,
+   "wins": 1,
    "losses": 1,
    "draws": 0,
    "rank": 3,
-   "finish": "Semifinalist",
+   "finish": "3rd place",
    "counted": true
   },
   {
@@ -1984,10 +1984,10 @@ window.SWU_SAMPLE_DATA = {
    "points": 0,
    "bonus": 0,
    "wins": 0,
-   "losses": 1,
+   "losses": 2,
    "draws": 0,
-   "rank": 3,
-   "finish": "Semifinalist",
+   "rank": 4,
+   "finish": "4th place",
    "counted": true
   }
  ],
@@ -4615,6 +4615,18 @@ window.SWU_SAMPLE_DATA = {
    "phase": "top",
    "p1": "KyberKnight",
    "p2": "NerfHerder",
+   "g1": 1,
+   "g2": 2,
+   "gd": 0,
+   "result": "p2"
+  },
+  {
+   "event": "playoffs-s1",
+   "round": 2,
+   "roundName": "3rd place",
+   "phase": "top",
+   "p1": "Lothcat",
+   "p2": "BespinBob",
    "g1": 1,
    "g2": 2,
    "gd": 0,

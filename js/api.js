@@ -21,6 +21,8 @@
   };
 
   // Sent as text/plain so the browser doesn't need a CORS preflight, which Apps Script can't answer.
+  // Exactly one request per call: nothing is retried automatically. On failure the error is
+  // shown in the editor and the user decides whether to try again.
   api.call = async function (action, payload = {}) {
     if (!SWU.config.apiUrl) throw new Error("The Google Sheet isn't connected yet (apiUrl in js/config.js is empty).");
     let response;
@@ -32,7 +34,13 @@
     } catch (e) {
       throw new Error("Couldn't reach the Google Sheet. Check your internet connection and try again.");
     }
-    const out = await response.json();
+    let out;
+    try {
+      out = await response.json();
+    } catch (e) {
+      // Google sometimes answers with an HTML error page (e.g. when it's busy or the script timed out).
+      throw new Error(`The Google script didn't answer properly (status ${response.status}). Wait a moment and try again.`);
+    }
     if (!out.ok) {
       const err = new Error(out.error || "Something went wrong.");
       err.code = out.code;

@@ -25,6 +25,7 @@
     calEdit: null,
     seasonEdit: null,
     po: null,
+    meleeUrl: "",
   };
   let root = null;
 
@@ -50,7 +51,10 @@
   }
 
   // Runs an API call with a busy message, then redraws with a success or error notice.
+  // Runs one action at a time: clicks that arrive while something is still running are ignored,
+  // so a double-click can never send the same request twice.
   async function run(message, task, success) {
+    if (state.busy) return;
     state.busy = message;
     state.notice = null;
     draw();
@@ -105,7 +109,7 @@
   function importView() {
     const fetchForm = `<form class="ed-card ed-fetch" data-form="fetch">
       <label class="field field--grow"><span>Melee link</span>
-        <input name="url" type="url" placeholder="https://melee.gg/Tournament/View/473931" required></label>
+        <input name="url" type="url" placeholder="https://melee.gg/Tournament/View/473931" value="${esc(state.meleeUrl || "")}" required></label>
       <button class="btn btn--primary">Fetch from Melee</button>
     </form>`;
     return fetchForm + (state.draft ? draftView() : `<p class="footnote">Paste the link of a finished Melee event. You'll then pick each player's leader and base.</p>`);
@@ -237,10 +241,18 @@
     };
   }
 
+  // One attempt per click. If it fails, the link stays in the box and the editor says so;
+  // trying again is a deliberate click on "Fetch from Melee".
   async function fetchFromMelee(url) {
+    state.meleeUrl = url;
     await run("Fetching the event from Melee… this can take 10–20 seconds.", async () => {
-      const out = await api.call("melee", { url });
-      state.draft = draftFromMelee(SWU.melee.normalize(out.melee));
+      try {
+        const out = await api.call("melee", { url });
+        state.draft = draftFromMelee(SWU.melee.normalize(out.melee));
+      } catch (err) {
+        const reason = /[.!?]$/.test(err.message) ? err.message : `${err.message}.`;
+        throw new Error(`Couldn't get the event from Melee: ${reason} Nothing was retried automatically. Check the link and click "Fetch from Melee" to try again.`);
+      }
     });
   }
 
@@ -259,6 +271,7 @@
     await run("Saving the event…", async () => {
       await api.call("saveEvent", payload);
       state.draft = null;
+      state.meleeUrl = "";
     }, `Saved "${event.name}". It's now on the standings, player pages and meta.${unknown
       ? ` ${unknown} deck${unknown === 1 ? " is" : "s are"} still unknown; fill ${unknown === 1 ? "it" : "them"} in any time under Events → Edit.`
       : ""}`);
@@ -311,14 +324,14 @@
       return {
         seasonId, existing: true, date: saved.event.date, format: saved.event.format, ...scheduled,
         seeds: saved.seeds.map((s) => ({ player: s.player, leader: s.result.leader || "", base: s.result.base || "" })),
-        scores: { sf1: score(saved.semis[0]), sf2: score(saved.semis[1]), final: score(saved.final) },
+        scores: { sf1: score(saved.semis[0]), sf2: score(saved.semis[1]), final: score(saved.final), third: score(saved.third) },
       };
     }
     const top = store.standings(seasonId).slice(0, 4);
     return {
       seasonId, existing: false, date: entry ? entry.date : ui.today(), format: "Premier", ...scheduled,
       seeds: [0, 1, 2, 3].map((i) => ({ player: top[i] ? top[i].player : "", leader: "", base: "" })),
-      scores: { sf1: ["", ""], sf2: ["", ""], final: ["", ""] },
+      scores: { sf1: ["", ""], sf2: ["", ""], final: ["", ""], third: ["", ""] },
     };
   }
 
@@ -333,11 +346,19 @@
     return g;
   }
 
-  function semiWinner(match, po) {
+  // Winner (or loser) of a semifinal from the scores typed so far; "" while undecided.
+  function semiWinner(match, po, wantLoser = false) {
     const g = parseScore(po.scores[match.key]);
     if (!Array.isArray(g)) return "";
-    return po.seeds[match.seeds[g[0] > g[1] ? 0 : 1]].player;
+    const winnerSide = g[0] > g[1] ? 0 : 1;
+    return po.seeds[match.seeds[wantLoser ? 1 - winnerSide : winnerSide]].player;
   }
+
+  // The final is played by the semifinal winners, the 3rd place match by the losers.
+  const PO_PAIRS = [
+    { key: "final", loser: false, fallback: "Winner of semifinal" },
+    { key: "third", loser: true, fallback: "Loser of semifinal" },
+  ];
 
   function playoffsView() {
     const seasons = [...store.seasons()].reverse();
@@ -384,12 +405,13 @@
     const matchRow = (key, label, a, b) => {
       const [x, y] = scoreInputs(key);
       return `<div class="po-score-row"><span class="po-score-label">${label}</span>
-        <span class="po-score-name po-score-name--left" ${key === "final" ? 'data-final-name="0"' : ""}>${a}</span>${x}<span class="muted">–</span>${y}
-        <span class="po-score-name" ${key === "final" ? 'data-final-name="1"' : ""}>${b}</span></div>`;
+        <span class="po-score-name po-score-name--left" data-pair-name="${key}-0">${a}</span>${x}<span class="muted">–</span>${y}
+        <span class="po-score-name" data-pair-name="${key}-1">${b}</span></div>`;
     };
     const matches = PO_MATCHES.map((m) =>
       matchRow(m.key, m.label, name(po.seeds[m.seeds[0]].player, `Seed ${m.seeds[0] + 1}`), name(po.seeds[m.seeds[1]].player, `Seed ${m.seeds[1] + 1}`))).join("")
-      + matchRow("final", "Final", name(semiWinner(PO_MATCHES[0], po), "Winner of semifinal 1"), name(semiWinner(PO_MATCHES[1], po), "Winner of semifinal 2"));
+      + PO_PAIRS.map((pair) => matchRow(pair.key, pair.key === "final" ? "Final" : "3rd place match",
+        ...PO_MATCHES.map((m, i) => name(semiWinner(m, po, pair.loser), `${pair.fallback} ${i + 1}`)))).join("");
 
     const results = `<section class="ed-card">
         <h3>2. Bracket and results</h3>
@@ -412,13 +434,13 @@
     return `<div class="ed-toolbar">${seasonPicker}${viewLink}</div>${schedule}${results}`;
   }
 
-  // Keep the final's player names in step while scores are typed (no redraw, so focus stays put).
-  function refreshFinalNames() {
-    PO_MATCHES.forEach((m, i) => {
-      const el = root.querySelector(`[data-final-name="${i}"]`);
-      const key = semiWinner(m, state.po);
-      if (el) el.textContent = key ? ui.playerName(key) : `Winner of semifinal ${i + 1}`;
-    });
+  // Keep the final's and 3rd place match's players in step while scores are typed (no redraw, so focus stays put).
+  function refreshPairNames() {
+    PO_PAIRS.forEach((pair) => PO_MATCHES.forEach((m, i) => {
+      const el = root.querySelector(`[data-pair-name="${pair.key}-${i}"]`);
+      const key = semiWinner(m, state.po, pair.loser);
+      if (el) el.textContent = key ? ui.playerName(key) : `${pair.fallback} ${i + 1}`;
+    }));
   }
 
   function savePlayoffs() {
@@ -430,28 +452,32 @@
     if (new Set(keys).size !== 4) return fail("A player can only have one seed.");
     if (!po.date) return fail("Choose the date of the playoffs.");
 
-    const scores = { sf1: parseScore(po.scores.sf1), sf2: parseScore(po.scores.sf2), final: parseScore(po.scores.final) };
+    const scores = Object.fromEntries(["sf1", "sf2", "final", "third"].map((k) => [k, parseScore(po.scores[k])]));
     const problem = Object.values(scores).find((v) => typeof v === "string");
     if (problem) return fail(problem);
     if (scores.final && !(scores.sf1 && scores.sf2)) return fail("Enter both semifinals before the final.");
+    if (scores.third && !(scores.sf1 && scores.sf2)) return fail("Enter both semifinals before the 3rd place match.");
 
     const match = (round, roundName, p1, p2, g) => ({ round, roundName, phase: "top", p1, p2, g1: g[0], g2: g[1], gd: 0, result: g[0] > g[1] ? "p1" : "p2" });
     const winner = (m) => (m.result === "p1" ? m.p1 : m.p2);
     const loser = (m) => (m.result === "p1" ? m.p2 : m.p1);
-    const matches = [];
-    if (scores.sf1) matches.push(match(1, "Semifinal 1", keys[0], keys[3], scores.sf1));
-    if (scores.sf2) matches.push(match(1, "Semifinal 2", keys[1], keys[2], scores.sf2));
-    if (scores.final) matches.push(match(2, "Final", winner(matches[0]), winner(matches[1]), scores.final));
+    const sf1 = scores.sf1 && match(1, "Semifinal 1", keys[0], keys[3], scores.sf1);
+    const sf2 = scores.sf2 && match(1, "Semifinal 2", keys[1], keys[2], scores.sf2);
+    const final = scores.final && match(2, "Final", winner(sf1), winner(sf2), scores.final);
+    const third = scores.third && match(2, "3rd place", loser(sf1), loser(sf2), scores.third);
+    const matches = [sf1, sf2, final, third].filter(Boolean);
 
+    // Semifinal losers are "Semifinalist" until the 3rd place match decides 3rd and 4th.
     const finish = new Map();
-    matches.forEach((m) => {
-      if (m.roundName === "Final") {
-        finish.set(winner(m), ["Champion", 1]);
-        finish.set(loser(m), ["Finalist", 2]);
-      } else {
-        finish.set(loser(m), ["Semifinalist", 3]);
-      }
-    });
+    [sf1, sf2].filter(Boolean).forEach((m) => finish.set(loser(m), ["Semifinalist", 3]));
+    if (final) {
+      finish.set(winner(final), ["Champion", 1]);
+      finish.set(loser(final), ["Finalist", 2]);
+    }
+    if (third) {
+      finish.set(winner(third), ["3rd place", 3]);
+      finish.set(loser(third), ["4th place", 4]);
+    }
     const record = (key) => matches.reduce((r, m) => {
       if (m.p1 === key || m.p2 === key) r[winner(m) === key ? 0 : 1]++;
       return r;
@@ -464,7 +490,7 @@
       return { player: seed.player, leader: seed.leader, base: seed.base, points: 0, bonus: 0, wins, losses, draws: 0, rank, finish: label, counted: true };
     });
     const event = { id: store.playoffEventId(po.seasonId), date: po.date, name: `${season.name} Playoffs`, type: "Playoffs", format: po.format, melee: "" };
-    const champion = scores.final ? ui.playerName(winner(matches[2])) : "";
+    const champion = final ? ui.playerName(winner(final)) : "";
 
     run("Saving the playoffs…", async () => {
       await api.call("saveEvent", { event, results, matches, players: [] });
@@ -801,7 +827,7 @@
     if (t.dataset.poField && state.po) state.po[t.dataset.poField] = t.value;
     if (t.dataset.poScore && state.po) {
       state.po.scores[t.dataset.poScore][Number(t.dataset.side)] = t.value;
-      refreshFinalNames();
+      refreshPairNames();
     }
     if (t.dataset.nick !== undefined) editPlayer(t.dataset.nick, { nickname: t.value });
     if (t.dataset.actionInput === "player-filter") {

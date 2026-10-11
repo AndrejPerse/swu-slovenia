@@ -103,13 +103,14 @@
     const fixtures = window.SANDBOX_FIXTURES;
     if (!fixtures) throw new Error("Melee import isn't available in the sandbox. Practise with Events → Edit or the Playoffs tab instead.");
     const url = req.url;
+    FAKE.log.push(`melee ${url}`);
     let m;
     if ((m = url.match(/Tournament\/View\/(\d+)/))) {
       return fixtures[`page:${m[1]}`] ? fakeResponse(200, fixtures[`page:${m[1]}`]) : fakeResponse(404, "");
     }
     if ((m = url.match(/GetRoundMatches\/(\d+)/))) {
       if (!req.payload || !req.payload["columns[0][data]"]) return fakeResponse(500, '{"Error":true}');
-      return fakeResponse(200, fixtures[`matches:${m[1]}`]);
+      return fixtures[`matches:${m[1]}`] ? fakeResponse(200, fixtures[`matches:${m[1]}`]) : fakeResponse(503, "");
     }
     if (url.includes("GetRoundStandings")) return fakeResponse(200, fixtures[`standings:${req.payload.roundId}`]);
     return fakeResponse(404, "");
@@ -123,6 +124,7 @@
     if (!String(url).startsWith(FAKE_API)) return realFetch(url, opts);
     await new Promise((r) => setTimeout(r, 30));
     const method = (opts.method || "GET").toUpperCase();
+    if (method === "POST") FAKE.log.push(`api ${JSON.parse(opts.body).action}`);
     const out = method === "POST"
       ? doPost({ postData: { contents: opts.body } })
       : doGet({ parameter: Object.fromEntries(new URL(url).searchParams) });

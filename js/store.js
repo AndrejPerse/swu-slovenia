@@ -293,7 +293,8 @@
 
   // ---- Season playoffs ----------------------------------------------------
 
-  // Bracket of a season's playoffs: semifinal 1 is seed 1 vs 4, semifinal 2 is seed 2 vs 3.
+  // Bracket of a season's playoffs: semifinal 1 is seed 1 vs 4, semifinal 2 is seed 2 vs 3,
+  // then the final (semifinal winners) and the 3rd place match (semifinal losers).
   // Results are saved in seed order, so seeds stay as entered even if the standings change later.
   // Matches without a result yet come back as pending pairings (result "").
   store.playoffs = function (seasonId) {
@@ -307,12 +308,16 @@
     const sf2 = find("Semifinal 2");
     const order = sf1 && sf2 ? [sf1.p1, sf2.p1, sf2.p2, sf1.p2] : results.map((r) => r.player);
     const seeds = order.map((player, i) => ({ seed: i + 1, player, result: byPlayer.get(player) || {} }));
-    const winner = (m) => (m && (m.result === "p1" || m.result === "p2") ? (m.result === "p1" ? m.p1 : m.p2) : null);
+    const decided = (m) => m && (m.result === "p1" || m.result === "p2");
+    const winner = (m) => (decided(m) ? (m.result === "p1" ? m.p1 : m.p2) : null);
+    const loser = (m) => (decided(m) ? (m.result === "p1" ? m.p2 : m.p1) : null);
     const pending = (p1, p2) => (p1 && p2 ? { p1, p2, g1: 0, g2: 0, gd: 0, result: "" } : null);
     const semis = [sf1 || pending(order[0], order[3]), sf2 || pending(order[1], order[2])];
     const final = find("Final") || pending(winner(semis[0]), winner(semis[1]));
+    // The semifinal losers play for 3rd place.
+    const third = find("3rd place") || pending(loser(semis[0]), loser(semis[1]));
     return {
-      event, seeds, semis, final, winner,
+      event, seeds, semis, final, third, winner, loser,
       champion: winner(final),
       seedOf: (key) => (seeds.find((s) => s.player === key) || {}).seed,
     };

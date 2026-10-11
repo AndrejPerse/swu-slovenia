@@ -605,6 +605,7 @@ button { font: inherit; color: inherit; }
 }
 .po-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .po-col-title { margin: 0; font: 600 12px var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.po-col-title--third { margin-top: 6px; }
 .po-match {
   position: relative;
   border-radius: 8px;
@@ -663,6 +664,9 @@ button { font: inherit; color: inherit; }
 .po-champion-art { width: 100%; max-width: 220px; border-radius: 10px; border: 1px solid var(--line-strong); }
 .po-champion-name .player-link { font-size: 22px; }
 .po-champion .po-deck { justify-content: center; }
+.po-podium { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 14px; color: var(--muted); }
+.po-podium b { color: var(--silver); }
+.po-podium span:last-child b { color: var(--bronze); }
 .po-finish { color: var(--playoff); font-weight: 700; }
 
 .po-upcoming {

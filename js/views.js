@@ -120,11 +120,18 @@
   }
 
   function bracket(po) {
-    const { event, semis, final, champion } = po;
+    const { event, semis, final, third, champion } = po;
     const season = store.season(event.season);
     const winnerName = (m, i) => (po.winner(m) ? ui.playerName(po.winner(m)) : `Winner of semifinal ${i}`);
+    const loserName = (m, i) => (po.loser(m) ? ui.playerName(po.loser(m)) : `Loser of semifinal ${i}`);
     const champResult = champion ? (po.seeds.find((s) => s.player === champion) || {}).result || {} : null;
     const champLeader = champResult && store.leader(champResult.leader);
+
+    // Runner-up and 3rd place under the champion, once those matches are decided.
+    const places = [["2nd", po.loser(final)], ["3rd", po.winner(third)]].filter(([, key]) => key);
+    const podium = places.length
+      ? `<span class="po-podium">${places.map(([label, key]) => `<span><b>${label}</b> ${esc(ui.playerName(key))}</span>`).join("")}</span>`
+      : "";
 
     const championCard = champion
       ? `<div class="po-champion">
@@ -132,6 +139,7 @@
           ${champLeader ? `<img class="po-champion-art" src="${esc(champLeader.art)}" alt="${esc(champLeader.name)}">` : ""}
           <span class="po-champion-name">${ui.playerLink(champion)}</span>
           <span class="po-deck">${ui.leader(champResult.leader, { compact: true })}${ui.base(champResult.base)}</span>
+          ${podium}
         </div>`
       : `<div class="po-champion po-champion--pending"><span class="po-champion-label">🏆 Champion</span><span class="muted">To be decided</span></div>`;
 
@@ -149,6 +157,8 @@
         <div class="po-col po-col--final">
           <h4 class="po-col-title">Final</h4>
           ${bracketMatch(po, final, "", [winnerName(semis[0], 1), winnerName(semis[1], 2)])}
+          <h4 class="po-col-title po-col-title--third">3rd place</h4>
+          ${bracketMatch(po, third, "", [loserName(semis[0], 1), loserName(semis[1], 2)])}
         </div>
         <div class="po-col po-col--champion">${championCard}</div>
       </div>
